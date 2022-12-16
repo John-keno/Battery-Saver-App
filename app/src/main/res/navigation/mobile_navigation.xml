@@ -7,13 +7,13 @@
 
     <fragment
         android:id="@+id/nav_home"
-        android:name="com.kejotech.batterysaverapp.ui.home.BatteryStat"
+        android:name="com.kejotech.batterysaverapp.ui.batteryStats.BatteryStat"
         android:label="Battery Stat"
         tools:layout="@layout/fragment_battery_stat" />
 
     <fragment
         android:id="@+id/nav_gallery"
-        android:name="com.kejotech.batterysaverapp.ui.gallery.GalleryFragment"
+        android:name="com.kejotech.batterysaverapp.ui.usageStats.UsageStatFragment"
         android:label="@string/menu_gallery"
         tools:layout="@layout/fragment_gallery" />
 

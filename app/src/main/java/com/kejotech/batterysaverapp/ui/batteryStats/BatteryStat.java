@@ -1,4 +1,4 @@
-package com.kejotech.batterysaverapp.ui.home;
+package com.kejotech.batterysaverapp.ui.batteryStats;
 
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -14,8 +13,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.kejotech.batterysaverapp.BatteryReceiver;
 import com.kejotech.batterysaverapp.databinding.FragmentBatteryStatBinding;
-
-import java.util.Objects;
 
 public class BatteryStat extends Fragment {
 

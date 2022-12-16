@@ -1,4 +1,4 @@
-package com.kejotech.batterysaverapp.ui.gallery;
+package com.kejotech.batterysaverapp.ui.usageStats;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
