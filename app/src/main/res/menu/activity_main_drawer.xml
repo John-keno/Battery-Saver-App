@@ -5,16 +5,16 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_home"
+            android:id="@+id/nav_BatteryStat"
             android:icon="@drawable/ic_baseline_battery_std_24"
             android:title="Battery Stat" />
         <item
-            android:id="@+id/nav_gallery"
+            android:id="@+id/nav_AppInfo"
             android:icon="@drawable/ic_baseline_info_24"
-            android:title="App Usage info" />
+            android:title="Usage info" />
         <item
-            android:id="@+id/nav_slideshow"
+            android:id="@+id/nav_SaverSettings"
             android:icon="@drawable/ic_baseline_settings_24"
-            android:title="Battery saver settings" />
+            android:title="settings" />
     </group>
 </menu>

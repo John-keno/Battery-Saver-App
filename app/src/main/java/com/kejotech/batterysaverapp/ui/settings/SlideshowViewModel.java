@@ -1,16 +1,16 @@
-package com.kejotech.batterysaverapp.ui.batteryStats;
+package com.kejotech.batterysaverapp.ui.settings;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-public class HomeViewModel extends ViewModel {
+public class SlideshowViewModel extends ViewModel {
 
     private final MutableLiveData<String> mText;
 
-    public HomeViewModel() {
+    public SlideshowViewModel() {
         mText = new MutableLiveData<>();
-        mText.setValue("50%");
+        mText.setValue("This is Battery Saver settings");
     }
 
     public LiveData<String> getText() {

@@ -1,206 +1,250 @@
 package com.kejotech.batterysaverapp.ui.usageStats;
 
+import static android.app.AppOpsManager.MODE_ALLOWED;
+import static android.app.AppOpsManager.OPSTR_GET_USAGE_STATS;
+import static android.content.Context.USAGE_STATS_SERVICE;
+
+import android.annotation.SuppressLint;
+import android.app.AppOpsManager;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.kejotech.batterysaverapp.R;
-import com.kejotech.batterysaverapp.databinding.FragmentGalleryBinding;
+import com.kejotech.batterysaverapp.databinding.FragmentUsageStatBinding;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class UsageStatFragment extends Fragment {
 
-    private FragmentGalleryBinding binding;
-    private List<AppList> installedApps;
-    private AppAdapter installedAppAdapter;
-    ListView userInstalledApps;
+    private FragmentUsageStatBinding binding;
+    private Button enableBtn;
+    private Button showBtn;
+    private TextView permissionDescriptionTv;
+    private ListView appsList;
+    private TextView usageTv;
+    private FloatingActionButton fab;
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        GalleryViewModel galleryViewModel =
-                new ViewModelProvider(this).get(GalleryViewModel.class);
 
-        binding = FragmentGalleryBinding.inflate(inflater, container, false);
+        binding = FragmentUsageStatBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-//        final TextView textView = binding.textGallery;
-//        galleryViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
+        enableBtn = binding.enableBtn;
+        showBtn = binding.showBtn;
+        permissionDescriptionTv = binding.permissionDescriptionTv;
+        usageTv = binding.usageTv;
+        appsList = binding.appsList;
 
-
-        userInstalledApps =binding.installedAppList;
-
-        installedApps = getInstalledApps();
-        installedAppAdapter = new AppAdapter(requireContext(), installedApps);
-        userInstalledApps.setAdapter(installedAppAdapter);
-        userInstalledApps.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, final int i, long l) {
-
-                String[] colors = {" Open App", " App Info"};
-                AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-                builder.setTitle("Choose Action")
-                        .setItems(colors, new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                // The 'which' argument contains the index position of the selected item
-                                if (which==0){
-                                    Intent intent = requireContext().getPackageManager().getLaunchIntentForPackage(installedApps.get(i).packages);
-                                    if(intent != null){
-                                        startActivity(intent);
-                                    }
-                                    else {
-                                        Toast.makeText(requireContext(), installedApps.get(i).packages + " Error, Please Try Again...", Toast.LENGTH_SHORT).show();
-                                    }
-                                }
-                                if (which==1){
-                                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                                    intent.setData(Uri.parse("package:" + installedApps.get(i).packages));
-                                    Toast.makeText(requireContext(), installedApps.get(i).packages, Toast.LENGTH_SHORT).show();
-                                    startActivity(intent);
-                                }
-                            }
-                        });
-                builder.show();
-
-            }
-        });
-
-        //Total Number of Installed-Apps(i.e. List Size)
-        String  abc = userInstalledApps.getCount()+"";
-        TextView countApps = binding.countApps;
-        countApps.setText("Total Installed Apps: "+abc);
-        Toast.makeText(requireContext(), abc+" Apps", Toast.LENGTH_SHORT).show();
-
-
+        fab = requireActivity().findViewById(R.id.fab);
+        fab.setVisibility(View.GONE);
         return root;
     }
 
-    private List<AppList> getInstalledApps() {
-        PackageManager pm = requireContext().getPackageManager();
-        List<AppList> apps = new ArrayList<>();
-        List<PackageInfo> packs =requireContext().getPackageManager().getInstalledPackages(0);
-        //List<PackageInfo> packs = getPackageManager().getInstalledPackages(PackageManager.GET_PERMISSIONS);
-        for (int i = 0; i < packs.size(); i++) {
-            PackageInfo p = packs.get(i);
-            if ((!isSystemPackage(p))) {
-                String appName = p.applicationInfo.loadLabel(requireActivity().getPackageManager()).toString();
-                Drawable icon = p.applicationInfo.loadIcon(requireActivity().getPackageManager());
-                String packages = p.applicationInfo.packageName;
-                apps.add(new AppList(appName, icon, packages));
+    /**
+     * load the usage stats for last 24h
+     */
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void loadStatistics() {
+        UsageStatsManager usm = (UsageStatsManager) requireContext().getSystemService(USAGE_STATS_SERVICE);
+        List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY,  System.currentTimeMillis() - 1000*3600*24,  System.currentTimeMillis());
+        appList = appList.stream().filter(app -> app.getTotalTimeInForeground() > 0).collect(Collectors.toList());
+
+        // Group the usageStats by application and sort them by total time in foreground
+        if (appList.size() > 0) {
+            Map<String, UsageStats> mySortedMap = new TreeMap<>();
+            for (UsageStats usageStats : appList) {
+                mySortedMap.put(usageStats.getPackageName(), usageStats);
+            }
+            showAppsUsage(mySortedMap);
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private void showAppsUsage(Map<String, UsageStats> mySortedMap) {
+        //public void showAppsUsage(List<UsageStats> usageStatsList) {
+        ArrayList<App> appsList = new ArrayList<>();
+        List<UsageStats> usageStatsList = new ArrayList<>(mySortedMap.values());
+
+        // sort the applications by time spent in foreground
+        Collections.sort(usageStatsList, Comparator.comparingLong(UsageStats::getTotalTimeInForeground));
+
+        // get total time of apps usage to calculate the usagePercentage for each app
+        long totalTime;
+        totalTime = usageStatsList.stream().map(UsageStats::getTotalTimeInForeground).mapToLong(Long::longValue).sum();
+
+        //fill the appsList
+        for (UsageStats usageStats : usageStatsList) {
+            try {
+                String packageName = usageStats.getPackageName();
+                @SuppressLint("UseCompatLoadingForDrawables")
+                Drawable icon = requireContext().getDrawable(R.drawable.no_image);//getDrawable();
+                String[] packageNames = packageName.split("\\.");
+                String appName = packageNames[packageNames.length-1].trim();
+
+
+                if(isAppInfoAvailable(usageStats)){
+                    ApplicationInfo ai = requireContext().getPackageManager().getApplicationInfo(packageName, 0);
+                    icon = requireContext().getPackageManager().getApplicationIcon(ai);
+                    appName = requireContext().getPackageManager().getApplicationLabel(ai).toString();
+                }
+
+                String usageDuration = getDurationBreakdown(usageStats.getTotalTimeInForeground());
+                int usagePercentage = (int) (usageStats.getTotalTimeInForeground() * 100 / totalTime);
+
+                App usageStatDTO = new App(icon, appName, usagePercentage, usageDuration);
+                appsList.add(usageStatDTO);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
             }
         }
-        return apps;
-    }
-
-    private boolean isSystemPackage(PackageInfo pkgInfo) {
-        return (pkgInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-    }
 
 
+        // reverse the list to get most usage first
+        Collections.reverse(appsList);
+        // build the adapter
+        AppsAdapter adapter = new AppsAdapter(requireContext(), appsList);
 
+        // attach the adapter to a ListView
+        ListView listView = binding.appsList;
+        listView.setAdapter(adapter);
 
-    public static class AppAdapter extends BaseAdapter {
-
-        public LayoutInflater layoutInflater;
-        public List<AppList> listStorage;
-
-        public AppAdapter(Context context, List<AppList> customizedListView) {
-            layoutInflater =(LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            listStorage = customizedListView;
-        }
-
-        @Override
-        public int getCount() {
-            return listStorage.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return position;
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-
-            ViewHolder listViewHolder;
-            if(convertView == null){
-                listViewHolder = new ViewHolder();
-                convertView = layoutInflater.inflate(R.layout.installed_app_list, parent, false);
-
-                listViewHolder.textInListView = convertView.findViewById(R.id.list_app_name);
-                listViewHolder.imageInListView = convertView.findViewById(R.id.app_icon);
-                listViewHolder.packageInListView= convertView.findViewById(R.id.app_package);
-                convertView.setTag(listViewHolder);
-            }else{
-                listViewHolder = (ViewHolder)convertView.getTag();
-            }
-            listViewHolder.textInListView.setText(listStorage.get(position).getName());
-            listViewHolder.imageInListView.setImageDrawable(listStorage.get(position).getIcon());
-            listViewHolder.packageInListView.setText(listStorage.get(position).getPackages());
-
-            return convertView;
-        }
-
-        static class ViewHolder{
-            TextView textInListView;
-            ImageView imageInListView;
-            TextView packageInListView;
-        }
-    }
-
-    public static class AppList {
-        private final String name;
-        Drawable icon;
-        private final String packages;
-        public AppList(String name, Drawable icon, String packages) {
-            this.name = name;
-            this.icon = icon;
-            this.packages = packages;
-        }
-        public String getName() {
-            return name;
-        }
-        public Drawable getIcon() {
-            return icon;
-        }
-        public String getPackages() {
-            return packages;
-        }
-
+        showHideItemsWhenShowApps();
     }
 
 
+    /**
+     * check if PACKAGE_USAGE_STATS permission is allowed for this application
+     * @return true if permission granted
+     */
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private boolean getGrantStatus() {
+        AppOpsManager appOps = (AppOpsManager) requireContext()
+                .getSystemService(Context.APP_OPS_SERVICE);
+
+        int mode = appOps.checkOpNoThrow(OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(), requireContext().getPackageName());
+
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            return (requireContext().checkCallingOrSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) == PackageManager.PERMISSION_GRANTED);
+        } else {
+            return (mode == MODE_ALLOWED);
+        }
+    }
+
+    /**
+     * helper method to get string in format hh:mm:ss from miliseconds
+     *
+     * @param millis (application time in foreground)
+     * @return string in format hh:mm:ss from miliseconds
+     */
+    private String getDurationBreakdown(long millis) {
+        if (millis < 0) {
+            throw new IllegalArgumentException("Duration must be greater than zero!");
+        }
+
+        long hours = TimeUnit.MILLISECONDS.toHours(millis);
+        millis -= TimeUnit.HOURS.toMillis(hours);
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis);
+        millis -= TimeUnit.MINUTES.toMillis(minutes);
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis);
+
+        return (hours + " h " +  minutes + " m " + seconds + " s");
+    }
+
+    /**
+     * helper method used to show/hide items in the view when  PACKAGE_USAGE_STATS permission is not allowed
+     */
+    public void showHideNoPermission() {
+        enableBtn.setVisibility(View.VISIBLE);
+        permissionDescriptionTv.setVisibility(View.VISIBLE);
+        showBtn.setVisibility(View.GONE);
+        usageTv.setVisibility(View.GONE);
+        appsList.setVisibility(View.GONE);
+
+    }
+
+    /**
+     * helper method used to show/hide items in the view when  PACKAGE_USAGE_STATS permission allowed
+     */
+    public void showHideWithPermission() {
+        enableBtn.setVisibility(View.GONE);
+        permissionDescriptionTv.setVisibility(View.GONE);
+        showBtn.setVisibility(View.GONE);
+        usageTv.setVisibility(View.GONE);
+        appsList.setVisibility(View.GONE);
+    }
+
+    /**
+     * helper method used to show/hide items in the view when showing the apps list
+     */
+    public void showHideItemsWhenShowApps() {
+        enableBtn.setVisibility(View.GONE);
+        permissionDescriptionTv.setVisibility(View.GONE);
+        showBtn.setVisibility(View.GONE);
+        usageTv.setVisibility(View.VISIBLE);
+        appsList.setVisibility(View.VISIBLE);
+
+    }
+
+    /**
+     * check if the application info is still existing in the device / otherwise it's not possible to show app detail
+     * @return true if application info is available
+     */
+    private boolean isAppInfoAvailable(UsageStats usageStats) {
+        try {
+            requireContext().getPackageManager().getApplicationInfo(usageStats.getPackageName(), 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getGrantStatus()) {
+            showHideWithPermission();
+            loadStatistics();
+        } else {
+            showHideNoPermission();
+            enableBtn.setOnClickListener(view -> startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)));
+        }
+    }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        fab.setVisibility(View.VISIBLE);
         binding = null;
+
     }
 }

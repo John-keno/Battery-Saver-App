@@ -1,4 +1,4 @@
-package com.kejotech.batterysaverapp;
+package com.kejotech.batterysaverapp.ui.batteryStats;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -6,6 +6,9 @@ import android.content.Intent;
 import android.os.BatteryManager;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import com.kejotech.batterysaverapp.MainActivity;
+import com.kejotech.batterysaverapp.R;
 
 public class BatteryReceiver extends BroadcastReceiver {
     @Override
